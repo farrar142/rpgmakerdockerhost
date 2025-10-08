@@ -115,7 +115,7 @@ class Games(rx.State):
             )
 
             async def inner():
-                docker_run = f"docker run -it --init -v {game.dir}{os.sep}www:/game -p {game.port}:3000 --name {game.container_name} -e DEBUG=true -d {game.image}"
+                docker_run = f"docker run -it --init -v {game.dir}:/game -p {game.port}:3000 --name {game.container_name} -e DEBUG=true -d {game.image}"
                 process = subprocess.run(
                     docker_run.split(), capture_output=True, text=True
                 )
@@ -232,7 +232,10 @@ class DirectoryState(rx.State):
                 self.directories = dirs
                 self.files = files
                 config = await self.get_state(Config)
-                config.set_container_name(self.current_path.split(os.sep)[-1])
+                if self.current_path.endswith("www"):
+                    config.set_container_name(self.current_path.split(os.sep)[-2])
+                else:
+                    config.set_container_name(self.current_path.split(os.sep)[-1])
 
             except PermissionError:
                 self.error_message = f"권한이 없습니다: {self.current_path}"
