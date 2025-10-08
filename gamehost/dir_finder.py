@@ -116,6 +116,10 @@ class Games(rx.State):
                     ]
                     if any(err in process.stderr for err in port_errors):
 
+                        docker_stop = f"docker rm -f {game.container_name}"
+                        process = subprocess.run(
+                            docker_stop.split(), capture_output=True, text=True
+                        )
                         async with self:
                             game.port += 1
                             session.add(game)
