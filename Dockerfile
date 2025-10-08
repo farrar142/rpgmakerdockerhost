@@ -20,4 +20,3 @@ RUN apt-get update -y
 RUN apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
 
 COPY . .
-CMD ["reflex", "run"]

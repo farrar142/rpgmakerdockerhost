@@ -10,5 +10,5 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     stdin_open: true
     tty: true
-    command: ["reflex", "db", "migrate", "&&", "reflex", "run", "--env", "prod"]
+    entrypoint: entrypoint.sh
     env_file: .env
