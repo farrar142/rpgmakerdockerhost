@@ -112,6 +112,7 @@ class Games(rx.State):
                     port_errors = [
                         "ports are not available",
                         "port is already allocated",
+                        "already in use",
                     ]
                     if any(err in process.stderr for err in port_errors):
 
