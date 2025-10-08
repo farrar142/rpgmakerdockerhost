@@ -346,7 +346,10 @@ def index() -> rx.Component:
                                 rx.text("이미지"),
                                 # 도커 이미지 설정
                                 rx.select(
-                                    items=["farrar142/mvix", "flandredaisuki/mvix"],
+                                    items=[
+                                        "farrar142/mvix",
+                                        "ghcr.io/flandredaisuki/mvix",
+                                    ],
                                     default_value=Config.image,
                                     on_change=Config.set_image,
                                 ),
@@ -382,10 +385,20 @@ def index() -> rx.Component:
                                                     game.id
                                                 ),
                                             ),
-                                            rx.button(
-                                                "실행",
-                                                on_click=lambda: Games.run_game(
-                                                    game.id
+                                            rx.cond(
+                                                game.status == GameStatus.NOTCREATED,
+                                                rx.button(
+                                                    "생성중",
+                                                    on_click=lambda: Games.run_game(
+                                                        game.id
+                                                    ),
+                                                    color_scheme="orange",
+                                                ),
+                                                rx.button(
+                                                    "실행",
+                                                    on_click=lambda: Games.run_game(
+                                                        game.id
+                                                    ),
                                                 ),
                                             ),
                                         ),
