@@ -3,12 +3,12 @@ services:
     build: .
     container_name: gamehost
     ports:
-      - "3000:3000"
-      - "8000:8000"
+      - "${FRONTEND_PORT}:3000"
+      - "${BACKEND_PORT}:8000"
     volumes:
       - .:/usr/src/app
       - /var/run/docker.sock:/var/run/docker.sock
     stdin_open: true
     tty: true
-    entrypoint: entrypoint.sh
+    entrypoint: sh entrypoint.sh
     env_file: .env
