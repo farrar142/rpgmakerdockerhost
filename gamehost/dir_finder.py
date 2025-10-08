@@ -51,12 +51,18 @@ class Games(rx.State):
                 directory = await self.get_state(DirectoryState)
                 directory.error_message = f"'www' 폴더가 {dir}에 없습니다."
                 return
+
         with rx.session() as session:
+            port = 3000
+            if last_game := session.exec(
+                Game.select().order_by(Game.port.desc())
+            ).first():
+                port = last_game.port + 1
             async with self:
                 config = await self.get_state(Config)
                 game = Game(
                     dir=dir,
-                    port=3000,
+                    port=port,
                     container_name=config.container_name,
                     image=config.image,
                 )
