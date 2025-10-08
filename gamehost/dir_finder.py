@@ -212,12 +212,13 @@ class DirectoryState(rx.State):
     error_message: str = ""
     selected_directory: str = ""
 
-    @rx.event
+    @rx.event(background=True)
     async def refresh(self):
         """디렉토리 내용 새로고침"""
         print("Refreshing directory:", self.current_path)
         try:
-            self.error_message = ""
+            async with self:
+                self.error_message = ""
             path = pathlib.Path(self.current_path)
 
             dirs = []
@@ -226,36 +227,38 @@ class DirectoryState(rx.State):
             # 상위 디렉토리 추가 (루트가 아닌 경우)
             if path.parent != path:
                 dirs.append("..")
+            async with self:
+                # 현재 디렉토리의 내용들 가져오기
+                try:
+                    for item in sorted(path.iterdir()):
+                        if item.is_dir():
+                            dirs.append(item.name)
+                        else:
+                            files.append(item.name)
 
-            # 현재 디렉토리의 내용들 가져오기
-            try:
-                for item in sorted(path.iterdir()):
-                    if item.is_dir():
-                        dirs.append(item.name)
+                    self.directories = dirs
+                    self.files = files
+                    config = await self.get_state(Config)
+                    if self.current_path.endswith("www"):
+                        config.set_container_name(self.current_path.split(os.sep)[-2])
                     else:
-                        files.append(item.name)
+                        config.set_container_name(self.current_path.split(os.sep)[-1])
 
-                self.directories = dirs
-                self.files = files
-                config = await self.get_state(Config)
-                if self.current_path.endswith("www"):
-                    config.set_container_name(self.current_path.split(os.sep)[-2])
-                else:
-                    config.set_container_name(self.current_path.split(os.sep)[-1])
-
-            except PermissionError:
-                self.error_message = f"권한이 없습니다: {self.current_path}"
-                self.directories = []
-                self.files = []
-            except Exception as e:
-                self.error_message = f"오류 발생: {str(e)}"
-                self.directories = []
-                self.files = []
+                except PermissionError:
+                    self.error_message = f"권한이 없습니다: {self.current_path}"
+                    self.directories = []
+                    self.files = []
+                except Exception as e:
+                    self.error_message = f"오류 발생: {str(e)}"
+                    self.directories = []
+                    self.files = []
 
         except Exception as e:
-            self.error_message = f"디렉토리를 읽을 수 없습니다: {str(e)}"
-            self.directories = []
-            self.files = []
+            async with self:
+                self.error_message = f"디렉토리를 읽을 수 없습니다: {str(e)}"
+                self.directories = []
+                self.files = []
+        yield None
 
     @rx.event
     async def go_to_parent(self):
@@ -268,7 +271,7 @@ class DirectoryState(rx.State):
                 print("Going to parent directory:", new_path)
                 self.current_path = str(new_path.resolve())
                 print("await refresh")
-                await self.refresh()
+                yield DirectoryState.refresh()
         except Exception as e:
             self.error_message = f"상위 디렉토리로 이동 중 오류: {str(e)}"
             raise e
@@ -278,13 +281,12 @@ class DirectoryState(rx.State):
         """지정된 디렉토리로 이동"""
         try:
             if directory_name == "..":
-                await self.go_to_parent()
-                return
+                yield DirectoryState.go_to_parent()
 
             new_path = pathlib.Path(self.current_path) / directory_name
             if new_path.exists() and new_path.is_dir():
                 self.current_path = str(new_path.resolve())
-                await self.refresh()
+                yield DirectoryState.refresh()
             else:
                 self.error_message = f"디렉토리를 찾을 수 없습니다: {directory_name}"
         except PermissionError:
@@ -296,7 +298,7 @@ class DirectoryState(rx.State):
     async def set_selected_directory(self, directory_name: str):
         """선택된 디렉토리 설정 후 이동"""
         self.selected_directory = directory_name
-        await self.change_directory(directory_name)
+        yield DirectoryState.change_directory(directory_name)
 
 
 def index() -> rx.Component:
