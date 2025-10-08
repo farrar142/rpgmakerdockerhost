@@ -262,11 +262,15 @@ class DirectoryState(rx.State):
         """상위 디렉토리로 이동"""
         try:
             new_path = pathlib.Path(self.current_path).parent
+            print(new_path)
             if new_path.exists() and new_path.is_dir():
+                print("Going to parent directory:", new_path)
                 self.current_path = str(new_path.resolve())
+                print("await refresh")
                 await self.refresh()
         except Exception as e:
             self.error_message = f"상위 디렉토리로 이동 중 오류: {str(e)}"
+            raise e
 
     @rx.event
     async def change_directory(self, directory_name: str):
