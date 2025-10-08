@@ -265,12 +265,21 @@ class DirectoryState(rx.State):
         """상위 디렉토리로 이동"""
         try:
             print("Going to parent directory")
+            yield rx.call_script("console.log('Going to parent directory')")
             new_path = pathlib.Path(self.current_path).parent
             print(new_path)
+            yield rx.call_script(
+                f"console.log('Going to parent directory: {new_path}')"
+            )
             if new_path.exists() and new_path.is_dir():
                 print("Going to parent directory:", new_path)
+                yield rx.call_script(
+                    f"console.log('Changing directory to: {new_path}')"
+                )
                 self.current_path = str(new_path.resolve())
-                print("await refresh")
+                yield rx.call_script(
+                    f"console.log('New current path: {self.current_path}')"
+                )
                 yield DirectoryState.refresh()
         except Exception as e:
             self.error_message = f"상위 디렉토리로 이동 중 오류: {str(e)}"
