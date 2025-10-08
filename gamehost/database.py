@@ -16,3 +16,4 @@ class Game(rx.Model, table=True):
     port: int
     container_name: str
     status: GameStatus = GameStatus.NOTCREATED
+    image: str = "farrar142/mvix"

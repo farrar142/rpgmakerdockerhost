@@ -10,6 +10,19 @@ from redis.asyncio import Redis
 # db = GameDatabase(redis=Redis(host="192.168.0.14"))
 
 
+class Config(rx.State):
+    container_name: str = "my_container"
+    image: str = "farrar142/mvix"
+
+    @rx.event
+    def set_container_name(self, name: str):
+        self.container_name = name or "my_container"
+
+    @rx.event
+    def set_image(self, image: str):
+        self.image = image
+
+
 class Games(rx.State):
     games: list[Game] = []
 
@@ -37,13 +50,18 @@ class Games(rx.State):
             async with self:
                 directory = await self.get_state(DirectoryState)
                 directory.error_message = f"'www' 폴더가 {dir}에 없습니다."
-            return
-        container_name = dir.split(os.sep)[-1]
+                return
         with rx.session() as session:
-            game = Game(dir=dir, port=3000, container_name=container_name)
-            session.add(game)
-            session.commit()
             async with self:
+                config = await self.get_state(Config)
+                game = Game(
+                    dir=dir,
+                    port=3000,
+                    container_name=config.container_name,
+                    image=config.image,
+                )
+                session.add(game)
+                session.commit()
                 self.games.append(game)
 
     @rx.event(background=True)
@@ -189,7 +207,7 @@ class DirectoryState(rx.State):
     selected_directory: str = ""
 
     @rx.event
-    def refresh(self):
+    async def refresh(self):
         """디렉토리 내용 새로고침"""
         print("Refreshing directory:", self.current_path)
         try:
@@ -213,6 +231,8 @@ class DirectoryState(rx.State):
 
                 self.directories = dirs
                 self.files = files
+                config = await self.get_state(Config)
+                config.set_container_name(self.current_path.split(os.sep)[-1])
 
             except PermissionError:
                 self.error_message = f"권한이 없습니다: {self.current_path}"
@@ -229,28 +249,28 @@ class DirectoryState(rx.State):
             self.files = []
 
     @rx.event
-    def go_to_parent(self):
+    async def go_to_parent(self):
         """상위 디렉토리로 이동"""
         try:
             new_path = pathlib.Path(self.current_path).parent
             if new_path.exists() and new_path.is_dir():
                 self.current_path = str(new_path.resolve())
-                self.refresh()
+                await self.refresh()
         except Exception as e:
             self.error_message = f"상위 디렉토리로 이동 중 오류: {str(e)}"
 
     @rx.event
-    def change_directory(self, directory_name: str):
+    async def change_directory(self, directory_name: str):
         """지정된 디렉토리로 이동"""
         try:
             if directory_name == "..":
-                self.go_to_parent()
+                await self.go_to_parent()
                 return
 
             new_path = pathlib.Path(self.current_path) / directory_name
             if new_path.exists() and new_path.is_dir():
                 self.current_path = str(new_path.resolve())
-                self.refresh()
+                await self.refresh()
             else:
                 self.error_message = f"디렉토리를 찾을 수 없습니다: {directory_name}"
         except PermissionError:
@@ -259,10 +279,10 @@ class DirectoryState(rx.State):
             self.error_message = f"디렉토리 이동 중 오류: {str(e)}"
 
     @rx.event
-    def set_selected_directory(self, directory_name: str):
+    async def set_selected_directory(self, directory_name: str):
         """선택된 디렉토리 설정 후 이동"""
         self.selected_directory = directory_name
-        self.change_directory(directory_name)
+        await self.change_directory(directory_name)
 
 
 def index() -> rx.Component:
@@ -315,53 +335,81 @@ def index() -> rx.Component:
                     width="100%",
                 ),
             ),
+            # 메인 컨테이너
             rx.hstack(
                 # 게임 목록
-                rx.box(
-                    rx.heading("🎮 저장된 게임", size="5", margin_bottom="1rem"),
+                rx.vstack(
                     rx.vstack(
-                        rx.foreach(
-                            Games.games,
-                            lambda game: rx.box(
-                                rx.hstack(
-                                    rx.text("📁"),
-                                    rx.text(game.container_name, weight="bold"),
-                                    rx.text(f"포트: {game.port}"),
-                                    align="center",
-                                    on_click=lambda: Games.move_to_url(game.port),
+                        rx.heading("🎮 설정", size="6", margin_bottom="1rem"),
+                        rx.vstack(
+                            rx.hstack(
+                                rx.text("이미지"),
+                                # 도커 이미지 설정
+                                rx.select(
+                                    items=["farrar142/mvix", "flandredaisuki/mvix"],
+                                    default_value=Config.image,
+                                    on_change=Config.set_image,
                                 ),
-                                rx.hstack(
-                                    rx.cond(
-                                        game.status == GameStatus.RUNNING,
-                                        rx.button(
-                                            "중지",
-                                            color_scheme="red",
-                                            on_click=lambda: Games.stop_game(game.id),
-                                        ),
-                                        rx.button(
-                                            "실행",
-                                            on_click=lambda: Games.run_game(game.id),
-                                        ),
-                                    ),
-                                    rx.button(
-                                        "삭제",
-                                        on_click=lambda: Games.delete_game(game.id),
-                                    ),
-                                    spacing="1",
-                                ),
-                                padding="10px",
-                                border="1px solid gray",
-                                border_radius="md",
-                                margin_bottom="5px",
-                                width="100%",
+                                align="center",
+                            ),
+                            rx.text_field(
+                                placeholder="컨테이너 이름",
+                                value=Config.container_name,
                             ),
                         ),
-                        width="100%",
-                        spacing="2",
                     ),
-                    margin_bottom="2rem",
+                    rx.box(
+                        rx.heading("🎮 저장된 게임", size="5", margin_bottom="1rem"),
+                        rx.vstack(
+                            rx.foreach(
+                                Games.games,
+                                lambda game: rx.box(
+                                    rx.hstack(
+                                        rx.text("📁"),
+                                        rx.text(game.container_name, weight="bold"),
+                                        rx.text(f"포트: {game.port}"),
+                                        align="center",
+                                        on_click=lambda: Games.move_to_url(game.port),
+                                    ),
+                                    rx.text(game.image),
+                                    rx.hstack(
+                                        rx.cond(
+                                            game.status == GameStatus.RUNNING,
+                                            rx.button(
+                                                "중지",
+                                                color_scheme="red",
+                                                on_click=lambda: Games.stop_game(
+                                                    game.id
+                                                ),
+                                            ),
+                                            rx.button(
+                                                "실행",
+                                                on_click=lambda: Games.run_game(
+                                                    game.id
+                                                ),
+                                            ),
+                                        ),
+                                        rx.button(
+                                            "삭제",
+                                            on_click=lambda: Games.delete_game(game.id),
+                                        ),
+                                        spacing="1",
+                                    ),
+                                    padding="10px",
+                                    border="1px solid gray",
+                                    border_radius="md",
+                                    margin_bottom="5px",
+                                    width="100%",
+                                ),
+                            ),
+                            width="100%",
+                            spacing="2",
+                        ),
+                        margin_bottom="2rem",
+                        width="100%",
+                    ),  # 디렉토리 목록
                     width="50%",
-                ),  # 디렉토리 목록
+                ),
                 rx.vstack(
                     rx.cond(
                         DirectoryState.directories != [],
