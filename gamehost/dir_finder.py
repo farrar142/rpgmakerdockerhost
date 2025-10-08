@@ -385,20 +385,10 @@ def index() -> rx.Component:
                                                     game.id
                                                 ),
                                             ),
-                                            rx.cond(
-                                                game.status == GameStatus.NOTCREATED,
-                                                rx.button(
-                                                    "실행",
-                                                    on_click=lambda: Games.run_game(
-                                                        game.id
-                                                    ),
-                                                ),
-                                                rx.button(
-                                                    "생성중",
-                                                    on_click=lambda: Games.run_game(
-                                                        game.id
-                                                    ),
-                                                    color_scheme="orange",
+                                            rx.button(
+                                                "실행",
+                                                on_click=lambda: Games.run_game(
+                                                    game.id
                                                 ),
                                             ),
                                         ),
