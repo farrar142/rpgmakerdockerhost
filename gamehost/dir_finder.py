@@ -358,6 +358,7 @@ def index() -> rx.Component:
                             rx.text_field(
                                 placeholder="컨테이너 이름",
                                 value=Config.container_name,
+                                on_change=Config.set_container_name,
                             ),
                         ),
                     ),
