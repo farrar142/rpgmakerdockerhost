@@ -261,6 +261,7 @@ class DirectoryState(rx.State):
     async def go_to_parent(self):
         """상위 디렉토리로 이동"""
         try:
+            print("Going to parent directory")
             new_path = pathlib.Path(self.current_path).parent
             print(new_path)
             if new_path.exists() and new_path.is_dir():
