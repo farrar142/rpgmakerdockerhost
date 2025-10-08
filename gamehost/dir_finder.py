@@ -45,11 +45,11 @@ class Games(rx.State):
     @rx.event(background=True)
     async def add_game(self, dir: str):
         # dir하위에 www폴더가 있는지 확인
-        if not os.path.exists(os.path.join(dir, "www")):
+        if not os.path.exists(os.path.join(dir, "index.html")):
             # DirectoryState의 에러 메세지로 변경
             async with self:
                 directory = await self.get_state(DirectoryState)
-                directory.error_message = f"'www' 폴더가 {dir}에 없습니다."
+                directory.error_message = f"'index.html' 파일이{dir}에 없습니다."
                 return
 
         with rx.session() as session:
