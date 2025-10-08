@@ -115,7 +115,7 @@ class Games(rx.State):
             )
 
             async def inner():
-                docker_run = f"docker run -it --init -v {game.dir}{os.sep}www:/game -p {game.port}:3000 --name {game.container_name} -e DEBUG=true -d farrar142/mvix"
+                docker_run = f"docker run -it --init -v {game.dir}{os.sep}www:/game -p {game.port}:3000 --name {game.container_name} -e DEBUG=true -d {game.image}"
                 process = subprocess.run(
                     docker_run.split(), capture_output=True, text=True
                 )
